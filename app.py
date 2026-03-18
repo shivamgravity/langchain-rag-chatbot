@@ -22,7 +22,7 @@ if uploaded_file:
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
-    query = st.text_input("Ask a question:")
+    query = st.chat_input("Ask a question:")
 
     if query:
         # Call only once
@@ -34,4 +34,7 @@ if uploaded_file:
 
     # Display chat
     for sender, message in st.session_state.chat_history:
-        st.write(f"**{sender}:** {message}")
+        if sender == "You":
+            st.chat_message("user").write(message)
+        else:
+            st.chat_message("assistant").write(message)
