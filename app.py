@@ -19,22 +19,19 @@ if uploaded_file:
         st.session_state.rag = create_rag_chain("temp.pdf")
 
     # Chat input
-    # query = st.text_input("Ask a question:") # real time interaction without a memory
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
     query = st.text_input("Ask a question:")
 
     if query:
+        # Call only once
         response = st.session_state.rag(query)
 
+        # Save chat
         st.session_state.chat_history.append(("You", query))
         st.session_state.chat_history.append(("Bot", response))
 
+    # Display chat
     for sender, message in st.session_state.chat_history:
         st.write(f"**{sender}:** {message}")
-
-    if query:
-        response = st.session_state.rag(query)
-        st.write("### 🤖 Answer:")
-        st.write(response)
