@@ -30,7 +30,7 @@ def create_rag_chain(pdf_path):
     retriever = db.as_retriever(search_kwargs={"k": 3})
 
     # 6. Groq LLM
-    llm = ChatGroq(model_name="llama3-8b-8192")
+    llm = ChatGroq(model_name="llama-3.1-8b-instant")
 
     # 🔥 NEW RAG FUNCTION (no chains)
     def rag_query(question):
