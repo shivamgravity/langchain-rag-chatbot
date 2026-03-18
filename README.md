@@ -1,3 +1,3 @@
-# LangFlow - RAG Chatbot
+# LangChain - RAG Chatbot
 
 *working...*
