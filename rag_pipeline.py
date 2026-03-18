@@ -5,6 +5,11 @@ from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 
 def create_rag_chain(pdf_path):
     # 1. Load PDF
