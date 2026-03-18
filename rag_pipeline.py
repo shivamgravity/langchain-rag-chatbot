@@ -1,11 +1,9 @@
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
-
-from langchain.chains import RetrievalQA
 
 
 def create_rag_chain(pdf_path):
@@ -20,7 +18,7 @@ def create_rag_chain(pdf_path):
     )
     docs = splitter.split_documents(documents)
 
-    # 3. Embeddings (FREE)
+    # 3. Embeddings
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
@@ -31,21 +29,32 @@ def create_rag_chain(pdf_path):
     # 5. Retriever
     retriever = db.as_retriever(search_kwargs={"k": 3})
 
-    # 6. Groq LLM (FREE + FAST)
-    llm = ChatGroq(
-        model_name="llama3-8b-8192"
-    )
+    # 6. Groq LLM
+    llm = ChatGroq(model_name="llama3-8b-8192")
 
-    # 7. RAG Chain
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=retriever
-    )
+    # 🔥 NEW RAG FUNCTION (no chains)
+    def rag_query(question):
+        docs = retriever.get_relevant_documents(question)
+        context = "\n\n".join([doc.page_content for doc in docs])
 
-    return qa_chain
+        prompt = f"""
+        Answer ONLY from the context below.
+        If not found, say "I don't know".
+
+        Context:
+        {context}
+
+        Question:
+        {question}
+        """
+
+        response = llm.invoke(prompt)
+        return response.content
+
+    return rag_query
 
 
-# 🔥 Test it
+# 🔥 Test
 if __name__ == "__main__":
-    chain = create_rag_chain("sample.pdf")
-    print(chain.invoke("What is this document about?"))
+    rag = create_rag_chain("sample.pdf")
+    print(rag("What is this document about?"))
