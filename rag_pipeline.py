@@ -29,7 +29,7 @@ def create_rag_chain(pdf_path):
     db = Chroma.from_documents(docs, embeddings)
 
     # 5. Retriever
-    retriever = db.as_retriever(search_kwargs={"k": 3})
+    retriever = db.as_retriever(search_kwargs={"k": 5})
 
     # 6. Groq LLM
     llm = ChatGroq(model_name="llama-3.1-8b-instant")
@@ -37,6 +37,9 @@ def create_rag_chain(pdf_path):
     # 🔥 NEW RAG FUNCTION (no chains)
     def rag_query(question):
         docs = retriever.invoke(question)
+
+        if not docs:
+            return "I couldn't find relevant information in the document."
 
         context = "\n\n".join([doc.page_content for doc in docs])
 
