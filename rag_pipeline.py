@@ -44,8 +44,13 @@ def create_rag_chain(pdf_path):
         context = "\n\n".join([doc.page_content for doc in docs])
 
         prompt = f"""
-        Answer ONLY from the context below.
-        If not found, say "I don't know".
+        You are a helpful AI assistant.
+
+        If the question is general (like "what is this document about"),
+        try to summarize the document using the context.
+
+        Answer ONLY from the context.
+        If no relevant info is found, say "I don't know".
 
         Context:
         {context}
