@@ -3,7 +3,9 @@ from rag_pipeline import create_rag_chain
 
 st.set_page_config(page_title="RAG Chatbot", layout="centered")
 
-st.title("📚 Chat with Your PDF")
+# st.title("📚 Chat with Your PDF")
+st.title("🤖 RAG Chatbot")
+st.caption("Chat with your documents using AI")
 
 # Upload PDF
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
