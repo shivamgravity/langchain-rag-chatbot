@@ -34,12 +34,15 @@ def create_rag_chain(pdf_paths):
     db = Chroma.from_documents(docs, embeddings)
 
     # 5. Retriever (Improved)
+    # retriever = db.as_retriever(
+    #     search_type="similarity_score_threshold",
+    #     search_kwargs={
+    #         "k": 5,
+    #         "score_threshold": 0.5
+    #     }
+    # )
     retriever = db.as_retriever(
-        search_type="similarity_score_threshold",
-        search_kwargs={
-            "k": 5,
-            "score_threshold": 0.5
-        }
+        search_kwargs={"k": 5}
     )
 
     # 6. Groq LLM
