@@ -28,7 +28,7 @@ if uploaded_files:
 
     # Create chain once
     if "rag" not in st.session_state:
-        st.session_state.rag = create_rag_chain("temp.pdf")
+        st.session_state.rag = create_rag_chain(file_paths)
 
     # Chat input
     if "chat_history" not in st.session_state:
@@ -37,16 +37,29 @@ if uploaded_files:
     query = st.chat_input("Ask a question:")
 
     if query:
-        # Call only once
-        response = st.session_state.rag(query)
+        # Call the RAG function
+        result = st.session_state.rag(query)
 
-        # Save chat
+        answer = result["answer"]
+        sources = result["sources"]
+
+        # Save chat (only answer)
         st.session_state.chat_history.append(("You", query))
-        st.session_state.chat_history.append(("Bot", response))
+        st.session_state.chat_history.append(("Bot", answer))
+
+        # Save sources separately
+        st.session_state.last_sources = sources
 
     # Display chat
-    for sender, message in st.session_state.chat_history:
+    for i, (sender, message) in enumerate(st.session_state.chat_history):
         if sender == "You":
             st.chat_message("user").write(message)
         else:
-            st.chat_message("assistant").write(message)
+            with st.chat_message("assistant"):
+                st.write(message)
+
+                # Show sources ONLY for last response
+                if i == len(st.session_state.chat_history) - 1 and "last_sources" in st.session_state:
+                    with st.expander("📄 Sources"):
+                        for src in st.session_state.last_sources:
+                            st.write(src)
