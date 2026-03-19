@@ -32,7 +32,13 @@ def create_rag_chain(pdf_paths):
     db = Chroma.from_documents(docs, embeddings)
 
     # 5. Retriever
-    retriever = db.as_retriever(search_kwargs={"k": 5})
+    retriever = db.as_retriever(
+        search_type="similarity_score_threshold",
+        search_kwargs={
+            "k": 5,
+            "score_threshold": 0.5
+        }
+    )
 
     # 6. Groq LLM
     llm = ChatGroq(model_name="llama-3.1-8b-instant")
