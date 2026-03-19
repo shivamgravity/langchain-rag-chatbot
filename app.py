@@ -10,11 +10,21 @@ st.caption("Chat with your documents using AI")
 # Upload PDF
 uploaded_files = st.file_uploader("Upload PDFs", type="pdf", accept_multiple_files=True)
 
-if uploaded_file:
-    with open("temp.pdf", "wb") as f:
-        f.write(uploaded_file.read())
+import os
 
-    st.success("PDF uploaded successfully!")
+if uploaded_files:
+    if not os.path.exists("temp_docs"):
+        os.makedirs("temp_docs")
+
+    file_paths = []
+
+    for file in uploaded_files:
+        path = os.path.join("temp_docs", file.name)
+        with open(path, "wb") as f:
+            f.write(file.read())
+        file_paths.append(path)
+
+    st.success(f"{len(file_paths)} PDFs uploaded!")
 
     # Create chain once
     if "rag" not in st.session_state:
