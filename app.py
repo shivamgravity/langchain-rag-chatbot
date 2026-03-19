@@ -8,7 +8,7 @@ st.title("🤖 RAG Chatbot")
 st.caption("Chat with your documents using AI")
 
 # Upload PDF
-uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
+uploaded_files = st.file_uploader("Upload PDFs", type="pdf", accept_multiple_files=True)
 
 if uploaded_file:
     with open("temp.pdf", "wb") as f:
