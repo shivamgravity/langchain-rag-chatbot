@@ -8,10 +8,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def create_rag_chain(pdf_path):
+def create_rag_chain(pdf_paths):
     # 1. Load PDF
-    loader = PyPDFLoader(pdf_path)
-    documents = loader.load()
+    documents = []
+
+    for path in pdf_paths:
+        loader = PyPDFLoader(path)
+        documents.extend(loader.load())
 
     # 2. Split text
     splitter = RecursiveCharacterTextSplitter(
@@ -38,6 +41,9 @@ def create_rag_chain(pdf_path):
     def rag_query(question):
         docs = retriever.invoke(question)
 
+        context = "\n\n".join([doc.page_content for doc in docs])
+        sources = [doc.metadata.get("source", "Unknown") for doc in docs]
+
         if not docs:
             return "I couldn't find relevant information in the document."
 
@@ -60,7 +66,11 @@ def create_rag_chain(pdf_path):
         """
 
         response = llm.invoke(prompt)
-        return response.content
+
+        return {
+            "answer": response.content,
+            "sources": sources
+        }
 
     return rag_query
 
