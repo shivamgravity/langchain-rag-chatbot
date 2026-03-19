@@ -1,17 +1,38 @@
 import streamlit as st
+import os
 from rag_pipeline import create_rag_chain
 
 st.set_page_config(page_title="RAG Chatbot", layout="centered")
 
-# st.title("📚 Chat with Your PDF")
+# 🎯 Header
 st.title("🤖 RAG Chatbot")
-st.caption("Chat with your documents using AI")
+st.caption("Chat with your documents using AI • Powered by Groq + LangChain")
 
-# Upload PDF
-uploaded_files = st.file_uploader("Upload PDFs", type="pdf", accept_multiple_files=True)
+# 🧩 Sidebar
+with st.sidebar:
+    st.header("📂 Upload Documents")
 
-import os
+    uploaded_files = st.file_uploader(
+        "Upload PDFs",
+        type="pdf",
+        accept_multiple_files=True
+    )
 
+    if st.button("🧹 Clear Chat"):
+        st.session_state.chat_history = []
+        st.session_state.last_sources = []
+
+# 🧠 Initialize session state
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+if "last_sources" not in st.session_state:
+    st.session_state.last_sources = []
+
+if "rag" not in st.session_state:
+    st.session_state.rag = None
+
+# 📄 Process uploaded PDFs
 if uploaded_files:
     if not os.path.exists("temp_docs"):
         os.makedirs("temp_docs")
@@ -26,40 +47,44 @@ if uploaded_files:
 
     st.success(f"{len(file_paths)} PDFs uploaded!")
 
-    # Create chain once
-    if "rag" not in st.session_state:
-        st.session_state.rag = create_rag_chain(file_paths)
+    # 🔥 Recreate RAG if new files uploaded
+    if st.session_state.rag is None:
+        with st.spinner("🔄 Processing documents..."):
+            st.session_state.rag = create_rag_chain(file_paths)
 
-    # Chat input
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+# 💤 Empty state
+if not uploaded_files:
+    st.info("👈 Upload one or more PDFs from the sidebar to start chatting.")
 
-    query = st.chat_input("Ask a question:")
+# 💬 Chat Input
+query = st.chat_input("Ask a question...")
 
-    if query:
-        # Call the RAG function
+if query and st.session_state.rag:
+    with st.spinner("🤖 Thinking..."):
         result = st.session_state.rag(query)
 
-        answer = result["answer"]
-        sources = result["sources"]
+    answer = result["answer"]
+    sources = result["sources"]
 
-        # Save chat (only answer)
-        st.session_state.chat_history.append(("You", query))
-        st.session_state.chat_history.append(("Bot", answer))
+    # Save chat
+    st.session_state.chat_history.append(("You", query))
+    st.session_state.chat_history.append(("Bot", answer))
 
-        # Save sources separately
-        st.session_state.last_sources = sources
+    # Save sources
+    st.session_state.last_sources = sources
 
-    # Display chat
-    for i, (sender, message) in enumerate(st.session_state.chat_history):
-        if sender == "You":
-            st.chat_message("user").write(message)
-        else:
-            with st.chat_message("assistant"):
-                st.write(message)
+# 🧾 Display Chat
+for i, (sender, message) in enumerate(st.session_state.chat_history):
+    if sender == "You":
+        with st.chat_message("user"):
+            st.markdown(message)
+    else:
+        with st.chat_message("assistant"):
+            st.markdown(message)
 
-                # Show sources ONLY for last response
-                if i == len(st.session_state.chat_history) - 1 and "last_sources" in st.session_state:
+            # Show sources only for last bot message
+            if i == len(st.session_state.chat_history) - 1:
+                if st.session_state.last_sources:
                     with st.expander("📄 Sources"):
                         for src in st.session_state.last_sources:
                             st.write(src)
