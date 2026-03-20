@@ -81,6 +81,8 @@ Conversation so far:
 If the question is general (like "what is this document about"),
 summarize the document based on the context.
 
+If context is partial, still try to answer using available information.
+
 Be clear, structured, and helpful.
 
 If the answer is not in the context, say "I don't know".
