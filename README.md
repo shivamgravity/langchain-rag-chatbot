@@ -152,7 +152,7 @@ rag-chatbot/
 
 **Shivam**
 
-* GitHub: https://github.com/your-username
+* GitHub: https://github.com/shivamgravity
 * LinkedIn: https://www.linkedin.com/in/shivam-gravity
 
 ---
