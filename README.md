@@ -148,12 +148,6 @@ rag-chatbot/
 
 ---
 
-## 📌 Resume Description
-
-> Built and deployed a production-ready RAG chatbot using LangChain, Groq LLM, HuggingFace embeddings, and Streamlit, supporting multi-document querying with conversational memory and source attribution.
-
----
-
 ## 👨‍💻 Author
 
 **Shivam**
