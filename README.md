@@ -1,4 +1,4 @@
-# 🤖 RAG Chatbot (Multi-PDF AI Assistant)
+# 🤖 AI Knowledge Assistant for Company Documents
 
 A production-ready **Retrieval-Augmented Generation (RAG)** chatbot that allows users to upload multiple PDFs and ask questions based on their content.
 

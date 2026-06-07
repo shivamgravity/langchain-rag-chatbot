@@ -2,10 +2,10 @@ import streamlit as st
 import os
 from rag_pipeline import create_rag_chain
 
-st.set_page_config(page_title="RAG Chatbot", layout="centered")
+st.set_page_config(page_title="AI Assistant", layout="centered")
 
 # 🎯 Header
-st.title("🤖 RAG Chatbot")
+st.title("🤖 AI Assistant")
 st.caption("Chat with your documents using AI • Powered by Groq + LangChain")
 
 # 🧩 Sidebar
