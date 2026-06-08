@@ -4,36 +4,48 @@ from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 
+import shutil
+
 from dotenv import load_dotenv
 import os
 
 # Load environment variables
 load_dotenv()
 
+# Embeddings (HuggingFace)
+embeddings = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2",
+    model_kwargs={"device": "cpu"}
+)
 
 def create_rag_chain(pdf_paths):
-    # 1. Load PDFs
+    # Load PDFs
     documents = []
     for path in pdf_paths:
         loader = PyPDFLoader(path)
         documents.extend(loader.load())
 
-    # 2. Split text into chunks
+    # Split text into chunks
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
         chunk_overlap=50
     )
     docs = splitter.split_documents(documents)
 
-    # 3. Embeddings (HuggingFace - FREE)
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    # Vector DB (Persistent Chroma)
+
+    persist_directory = "./chroma_db"
+
+    if os.path.exists(persist_directory):
+        shutil.rmtree(persist_directory)
+
+    db = Chroma.from_documents(
+        docs,
+        embeddings,
+        persist_directory=persist_directory
     )
 
-    # 4. Vector DB (Chroma)
-    db = Chroma.from_documents(docs, embeddings)
-
-    # 5. Retriever (Improved)
+    # Retriever (Improved)
     # retriever = db.as_retriever(
     #     search_type="similarity_score_threshold",
     #     search_kwargs={
@@ -45,13 +57,13 @@ def create_rag_chain(pdf_paths):
         search_kwargs={"k": 5}
     )
 
-    # 6. Groq LLM
+    # Groq LLM
     llm = ChatGroq(model_name="llama-3.1-8b-instant")
 
-    # 🔥 Memory (conversation history)
+    # Memory (conversation history)
     chat_history = []
 
-    # 7. RAG Query Function
+    # RAG Query Function
     def rag_query(question):
         # Retrieve relevant docs
         docs = retriever.invoke(question)
@@ -64,7 +76,16 @@ def create_rag_chain(pdf_paths):
 
         # Build context
         context = "\n\n".join([doc.page_content for doc in docs])
-        sources = [doc.metadata.get("source", "Unknown") for doc in docs]
+        
+        sources = []
+
+        for doc in docs:
+            sources.append({
+                "file": os.path.basename(
+                    doc.metadata.get("source", "Unknown")
+                ),
+                "page": doc.metadata.get("page", "Unknown") + 1
+            })
 
         # Use last few exchanges for memory
         history_text = "\n".join(chat_history[-4:])  # last 2 Q&A pairs
@@ -109,7 +130,7 @@ Question:
     return rag_query
 
 
-# 🔥 Test block
+# Test block
 if __name__ == "__main__":
     rag = create_rag_chain(["sample.pdf"])  # MUST be list
     result = rag("What is this document about?")

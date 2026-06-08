@@ -4,11 +4,11 @@ from rag_pipeline import create_rag_chain
 
 st.set_page_config(page_title="AI Assistant", layout="centered")
 
-# 🎯 Header
+# Header
 st.title("🤖 AI Assistant")
 st.caption("Chat with your documents using AI • Powered by Groq + LangChain")
 
-# 🧩 Sidebar
+# Sidebar
 with st.sidebar:
     st.header("📂 Upload Documents")
 
@@ -22,7 +22,7 @@ with st.sidebar:
         st.session_state.chat_history = []
         st.session_state.last_sources = []
 
-# 🧠 Initialize session state
+# Initialize session state
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
@@ -32,7 +32,7 @@ if "last_sources" not in st.session_state:
 if "rag" not in st.session_state:
     st.session_state.rag = None
 
-# 📄 Process uploaded PDFs
+# Process uploaded PDFs
 if uploaded_files:
     if not os.path.exists("temp_docs"):
         os.makedirs("temp_docs")
@@ -47,16 +47,16 @@ if uploaded_files:
 
     st.success(f"{len(file_paths)} PDFs uploaded!")
 
-    # 🔥 Recreate RAG if new files uploaded
+    # Recreate RAG if new files uploaded
     if st.session_state.rag is None:
         with st.spinner("🔄 Processing documents..."):
             st.session_state.rag = create_rag_chain(file_paths)
 
-# 💤 Empty state
+# Empty state
 if not uploaded_files:
     st.info("👈 Upload one or more PDFs from the sidebar to start chatting.")
 
-# 💬 Chat Input
+# Chat Input
 query = st.chat_input("Ask a question...")
 
 if query and st.session_state.rag:
@@ -73,7 +73,7 @@ if query and st.session_state.rag:
     # Save sources
     st.session_state.last_sources = sources
 
-# 🧾 Display Chat
+# Display Chat
 for i, (sender, message) in enumerate(st.session_state.chat_history):
     if sender == "You":
         with st.chat_message("user"):
@@ -86,5 +86,12 @@ for i, (sender, message) in enumerate(st.session_state.chat_history):
             if i == len(st.session_state.chat_history) - 1:
                 if st.session_state.last_sources:
                     with st.expander("📄 Sources"):
+                        seen = set()
+
                         for src in st.session_state.last_sources:
-                            st.write(src)
+
+                            citation = f"{src['file']} (Page {src['page']})"
+
+                            if citation not in seen:
+                                seen.add(citation)
+                                st.write(citation)
