@@ -1,12 +1,14 @@
 import streamlit as st
 import os
-from rag_pipeline import create_rag_chain
+from src.rag_pipeline import create_rag_chain
 
 st.set_page_config(page_title="AI Assistant", layout="centered")
 
 # Header
-st.title("🤖 AI Assistant")
-st.caption("Chat with your documents using AI • Powered by Groq + LangChain")
+st.title("📚 AI Knowledge Assistant")
+st.caption(
+    "Upload documents, generate insights, and ask questions."
+)
 
 # Sidebar
 with st.sidebar:
@@ -50,7 +52,43 @@ if uploaded_files:
     # Recreate RAG if new files uploaded
     if st.session_state.rag is None:
         with st.spinner("🔄 Processing documents..."):
-            st.session_state.rag = create_rag_chain(file_paths)
+            rag_system = create_rag_chain(file_paths)
+
+            st.session_state.rag = rag_system["query_fn"]
+            st.session_state.summary = rag_system["summary"]
+            st.session_state.num_documents = rag_system["num_documents"]
+            st.session_state.num_pages = rag_system["num_pages"]
+
+            if "summary" not in st.session_state:
+                st.session_state.summary = None
+
+            if "num_documents" not in st.session_state:
+                st.session_state.num_documents = 0
+
+            if "num_pages" not in st.session_state:
+                st.session_state.num_pages = 0
+
+    # Displaying the summary of uploaded documents
+
+    if st.session_state.summary:
+
+        st.subheader("📊 Document Overview")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric(
+                "Documents Uploaded",
+                st.session_state.num_documents
+            )
+
+        with col2:
+            st.metric(
+                "Pages Indexed",
+                st.session_state.num_pages
+            )
+
+        st.markdown(st.session_state.summary)
 
 # Empty state
 if not uploaded_files:

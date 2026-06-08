@@ -3,6 +3,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
+from src.document_summary import generate_document_summary
 
 import shutil
 
@@ -19,18 +20,25 @@ embeddings = HuggingFaceEmbeddings(
 )
 
 def create_rag_chain(pdf_paths):
+
     # Load PDFs
+
     documents = []
     for path in pdf_paths:
         loader = PyPDFLoader(path)
         documents.extend(loader.load())
 
     # Split text into chunks
+
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
         chunk_overlap=50
     )
     docs = splitter.split_documents(documents)
+
+    # document summary
+
+    document_summary = generate_document_summary(docs)
 
     # Vector DB (Persistent Chroma)
 
@@ -127,7 +135,13 @@ Question:
             "sources": sources
         }
 
-    return rag_query
+    return {
+        "query_fn": rag_query,
+        "summary": document_summary,
+        "num_documents": len(pdf_paths),
+        "num_chunks": len(docs),
+        "num_pages": len(documents)
+    }
 
 
 # Test block
