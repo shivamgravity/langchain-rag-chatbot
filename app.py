@@ -95,7 +95,7 @@ if not uploaded_files:
     st.info("👈 Upload one or more PDFs from the sidebar to start chatting.")
 
 # Chat Input
-query = st.chat_input("Ask a question...")
+query = st.chat_input("\u2601 Chat with Your Documents")
 
 if query and st.session_state.rag:
     with st.spinner("🤖 Thinking..."):
