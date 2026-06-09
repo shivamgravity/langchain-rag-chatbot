@@ -6,9 +6,16 @@ def generate_document_summary(docs):
     Generate a high-level summary of uploaded documents.
     """
 
-    # Take first few chunks to keep prompt small
+    # Take a sample of documents from the beginning and middle of the list for context
+    middle = len(docs) // 2
+
+    sample_docs = (
+        docs[:3] +
+        docs[middle:middle+5]
+    )
+
     sample_text = "\n\n".join(
-        [doc.page_content for doc in docs[:10]]
+        [doc.page_content for doc in sample_docs]
     )
 
     llm = ChatGroq(

@@ -4,8 +4,10 @@ from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 from src.document_summary import generate_document_summary
+from src.question_suggestions import generate_suggested_questions
 
 import shutil
+import uuid
 
 from dotenv import load_dotenv
 import os
@@ -40,17 +42,21 @@ def create_rag_chain(pdf_paths):
 
     document_summary = generate_document_summary(docs)
 
+    # question suggestions
+
+    suggested_questions = generate_suggested_questions(docs)
+
     # Vector DB (Persistent Chroma)
 
     persist_directory = "./chroma_db"
 
-    if os.path.exists(persist_directory):
-        shutil.rmtree(persist_directory)
+    collection_name = f"docs_{uuid.uuid4().hex[:8]}"
 
     db = Chroma.from_documents(
         docs,
         embeddings,
-        persist_directory=persist_directory
+        persist_directory=persist_directory,
+        collection_name=collection_name
     )
 
     # Retriever (Improved)
@@ -138,6 +144,7 @@ Question:
     return {
         "query_fn": rag_query,
         "summary": document_summary,
+        "suggested_questions": suggested_questions,
         "num_documents": len(pdf_paths),
         "num_chunks": len(docs),
         "num_pages": len(documents)
