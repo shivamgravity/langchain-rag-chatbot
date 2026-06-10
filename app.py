@@ -2,10 +2,25 @@ import streamlit as st
 import os
 from src.rag_pipeline import create_rag_chain
 
+import warnings
+
+warnings.filterwarnings("ignore")
+
+from datetime import datetime
+
+chat_export = f"""
+# AI Knowledge Assistant Conversation
+
+Generated:
+{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+---
+
+"""
+
 st.set_page_config(page_title="AI Assistant", layout="centered")
 
 # Custom CSS to left-align buttons
-
 st.markdown("""
 <style>
 div.stButton > button {
@@ -157,8 +172,15 @@ if uploaded_files:
 if not uploaded_files:
     st.info("👈 Upload one or more PDFs from the sidebar to start chatting.")
 
-# Prompting the user to ask questions after summary generation
+# Adding documents to export before starting conversation
+chat_export += "## Documents\n\n"
 
+for doc in st.session_state.uploaded_doc_names:
+    chat_export += f"- {doc}\n"
+
+chat_export += "\n---\n\n"
+
+# Prompting the user to ask questions after summary generation
 if st.session_state.rag:
 
     st.divider()
@@ -190,6 +212,8 @@ if query and st.session_state.rag:
 
     answer = result["answer"]
     sources = result["sources"]
+    retrieved_chunks = result["retrieved_chunks"]
+    confidence = result["confidence"]
 
     # Save chat
 
@@ -204,37 +228,174 @@ if query and st.session_state.rag:
         {
             "role": "assistant",
             "message": answer,
-            "sources": sources
+            "sources": sources,
+            "retrieved_chunks": retrieved_chunks,
+            "confidence": confidence
         }
     )
 
-# Display Chat
+# Build exportable chat content
+chat_export = ""
+
 for chat in st.session_state.chat_history:
 
     if chat["role"] == "user":
 
+        chat_export += (
+            f"## User\n\n"
+            f"{chat['message']}\n\n"
+        )
+
+    else:
+
+        chat_export += (
+            f"## Assistant\n\n"
+            f"{chat['message']}\n\n"
+        )
+
+        if chat.get("sources"):
+
+            chat_export += "### Sources\n\n"
+
+            seen = set()
+
+            for src in chat["sources"]:
+
+                key = (
+                    src["file"],
+                    src["page"]
+                )
+
+                if key in seen:
+                    continue
+
+                seen.add(key)
+
+                chat_export += (
+                    f"- {src['file']} "
+                    f"(Page {src['page']})\n"
+                )
+
+            chat_export += "\n"
+
+# Chat rendering with sources and retrieved chunk count
+# Display Chat
+for chat in st.session_state.chat_history:
+
+    if chat["role"] == "user":
+        
+        # Display user message
         with st.chat_message("user"):
             st.markdown(chat["message"])
 
     else:
 
+        # Display assistant message
         with st.chat_message("assistant"):
 
             st.markdown(chat["message"])
 
+            # Show number of sources used
+            number_of_sources = None
+            if chat.get("retrieved_chunks"):
+                number_of_sources = chat["retrieved_chunks"]
+            
+            # Show confidence in result
+            confidence_symbol = None
+            if chat.get("confidence"):
+                confidence = chat["confidence"]
+                if confidence == "Low":
+                    confidence_symbol = "\U0001F534"
+                elif confidence == "Medium":
+                    confidence_symbol = "\U0001F7E1"
+                else:
+                    confidence_symbol = "\U0001F7E2"
+            
+            if number_of_sources and confidence_symbol:
+                st.caption(
+                    f"📚 {chat["retrieved_chunks"]} sources used  \t  {confidence_symbol} Confidence: {confidence}"
+                )
+            elif number_of_sources:
+                st.caption(
+                    f"📚 {chat["retrieved_chunks"]} sources used"
+                )
+            else:
+                st.caption(
+                    f"{confidence_symbol} Confidence: {confidence}"
+                )
+
             if chat.get("sources"):
 
-                with st.expander("📄 Sources"):
+                with st.expander("📄 View Sources"):
+
+                    col1, col2 = st.columns(2)
 
                     seen = set()
 
+                    button_idx = 0
+
                     for src in chat["sources"]:
 
+                        # Avoid showing duplicate sources if multiple chunks come from the same page
+                        key = (
+                            src["file"],
+                            src["page"]
+                        )
+
+                        if key in seen:
+                            continue
+
+                        seen.add(key)
+
+                        # Create a citation string like "Document (Page 3)"
                         citation = (
                             f"{src['file']} "
                             f"(Page {src['page']})"
                         )
+                        
+                        # Create a snippet for each source
+                        content = src["content"].strip().replace("\n", " ")
+                        first_period = content.find(".")
 
-                        if citation not in seen:
-                            seen.add(citation)
-                            st.write(citation)
+                        if first_period != -1:
+                            snippet = content[first_period + 1:].strip()
+                        else:
+                            snippet = content
+
+                        snippet = snippet[:150]
+
+                        if len(snippet) < 100:
+                            snippet = content[:150]
+
+                        if len(src["content"]) > 100:
+                            snippet += "..."
+                        
+                        # Combine citation and snippet for button content
+                        button_content = f"**📄 {citation}**\n\n{snippet}"
+                        
+                        if button_idx % 2 == 0:
+                            target_col = col1
+                        else:
+                            target_col = col2
+
+                        with target_col:
+                            
+                            with st.container(border=True):
+
+                                st.markdown(citation)
+                                st.caption(snippet)
+                        
+                        button_idx += 1
+
+# Download conversation as markdown file
+if st.session_state.chat_history:
+
+    st.download_button(
+        label="📥 Download Conversation",
+        data=chat_export,
+        file_name=(
+            f"chat_"
+            f"{datetime.now():%Y%m%d_%H%M%S}.md"
+        ),
+        mime="text/markdown"
+    )

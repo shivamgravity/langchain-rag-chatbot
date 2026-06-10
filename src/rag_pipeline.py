@@ -12,6 +12,11 @@ import uuid
 from dotenv import load_dotenv
 import os
 
+import warnings
+
+# Ignore warnings for cleaner output
+warnings.filterwarnings("ignore")
+
 # Load environment variables
 load_dotenv()
 
@@ -33,8 +38,15 @@ def create_rag_chain(pdf_paths):
     # Split text into chunks
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=50
+        chunk_size=1000,
+        chunk_overlap=150,
+        separators=[
+            "\n\n", 
+            "\n", 
+            ". ", 
+            " ", 
+            ""
+        ]
     )
     docs = splitter.split_documents(documents)
 
@@ -68,7 +80,11 @@ def create_rag_chain(pdf_paths):
     #     }
     # )
     retriever = db.as_retriever(
-        search_kwargs={"k": 5}
+        search_type="mmr",
+        search_kwargs={
+            "k": 5,
+            "fetch_k": 15
+        }
     )
 
     # Groq LLM
@@ -79,8 +95,47 @@ def create_rag_chain(pdf_paths):
 
     # RAG Query Function
     def rag_query(question):
+
+        # Use last few exchanges for memory
+        history_text = "\n".join(chat_history[-4:])  # last 2 Q&A pairs
+
+        # Question Rewriting Prompt (for better retrieval in follow-up questions)
+        rewrite_prompt = f"""
+        Given the conversation history and latest user question,
+        rewrite the latest question so it is fully standalone.
+
+        Conversation:
+
+        {history_text}
+
+        Latest Question:
+
+        {question}
+
+        Return only the rewritten question.
+        """
+
+        if history_text:
+            # Rewritten question (for better retrieval in follow-up questions)
+            rewritten_question = llm.invoke(
+                rewrite_prompt
+            ).content.strip()
+        else:
+            # No history, use original question
+            rewritten_question = question
+
         # Retrieve relevant docs
-        docs = retriever.invoke(question)
+        docs = retriever.invoke(
+            rewritten_question
+        )
+
+        # Confidence score based on the number of chunks retrieved
+        if len(docs) < 3:
+            confidence = "Low"
+        elif len(docs) < 5:
+            confidence = "Medium"
+        else:
+            confidence = "High"
 
         if not docs:
             return {
@@ -94,40 +149,41 @@ def create_rag_chain(pdf_paths):
         sources = []
 
         for doc in docs:
-            sources.append({
-                "file": os.path.basename(
-                    doc.metadata.get("source", "Unknown")
-                ),
-                "page": doc.metadata.get("page", "Unknown") + 1
-            })
 
-        # Use last few exchanges for memory
-        history_text = "\n".join(chat_history[-4:])  # last 2 Q&A pairs
+            sources.append(
+                {
+                    "file": os.path.basename(
+                        doc.metadata["source"]
+                    ),
+                    "page": doc.metadata.get("page", 0) + 1,
+                    "content": doc.page_content
+                }
+            )
 
         # Prompt
         prompt = f"""
-You are an intelligent AI assistant.
+        You are an intelligent AI assistant.
 
-Use the provided context to answer the question.
+        Use the provided context to answer the question.
 
-Conversation so far:
-{history_text}
+        Conversation so far:
+        {history_text}
 
-If the question is general (like "what is this document about"),
-summarize the document based on the context.
+        If the question is general (like "what is this document about"),
+        summarize the document based on the context.
 
-If context is partial, still try to answer using available information.
+        If context is partial, still try to answer using available information.
 
-Be clear, structured, and helpful.
+        Be clear, structured, and helpful.
 
-If the answer is not in the context, say "I don't know".
+        If the answer is not in the context, say "I couldn't find enough information in the uploaded documents."
 
-Context:
-{context}
+        Context:
+        {context}
 
-Question:
-{question}
-"""
+        Question:
+        {question}
+        """
 
         # LLM response
         response = llm.invoke(prompt)
@@ -138,7 +194,9 @@ Question:
 
         return {
             "answer": response.content,
-            "sources": sources
+            "sources": sources,
+            "retrieved_chunks": len(docs),
+            "confidence": confidence
         }
 
     return {
