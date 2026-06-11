@@ -48,14 +48,19 @@ def create_rag_chain(pdf_paths):
             ""
         ]
     )
+
     docs = splitter.split_documents(documents)
 
-    # document summary
+    # Get number of chunks extracted
+    num_chunks = len(docs)
 
+    # Get number of pages
+    num_pages = len(documents)
+
+    # document summary
     document_summary = generate_document_summary(docs)
 
     # question suggestions
-
     suggested_questions = generate_suggested_questions(docs)
 
     # Vector DB (Persistent Chroma)
@@ -198,14 +203,16 @@ def create_rag_chain(pdf_paths):
             "retrieved_chunks": len(docs),
             "confidence": confidence
         }
-
+    
     return {
         "query_fn": rag_query,
         "summary": document_summary,
-        "suggested_questions": suggested_questions,
         "num_documents": len(pdf_paths),
-        "num_chunks": len(docs),
-        "num_pages": len(documents)
+        "num_pages": num_pages,
+        "num_chunks": num_chunks,
+        "embedding_model": "all-MiniLM-L6-v2",
+        "llm_model": "llama-3.1-8b-instant",
+        "suggested_questions": suggested_questions
     }
 
 

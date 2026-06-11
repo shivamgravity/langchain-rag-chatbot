@@ -85,6 +85,15 @@ if "uploaded_doc_names" not in st.session_state:
 if "selected_question" not in st.session_state:
     st.session_state.selected_question = None
 
+if "num_chunks" not in st.session_state:
+    st.session_state.num_chunks = 0
+
+if "embedding_model" not in st.session_state:
+    st.session_state.embedding_model = None
+
+if "llm_model" not in st.session_state:
+    st.session_state.llm_model = None
+
 # Process uploaded PDFs
 if uploaded_files:
     if not os.path.exists("temp_docs"):
@@ -116,6 +125,9 @@ if uploaded_files:
             st.session_state.num_documents = rag_system["num_documents"]
             st.session_state.num_pages = rag_system["num_pages"]
             st.session_state.suggested_questions = rag_system["suggested_questions"]
+            st.session_state.num_chunks = rag_system["num_chunks"]
+            st.session_state.embedding_model = rag_system["embedding_model"]
+            st.session_state.llm_model = rag_system["llm_model"]
             st.session_state.uploaded_doc_names = uploaded_doc_names # Update session state with new doc names
 
     # Displaying the summary of uploaded documents
@@ -124,27 +136,68 @@ if uploaded_files:
 
         st.subheader("📊 Document Overview")
 
-        col1, col2 = st.columns(2)
+        col11, col12, col13, col14 = st.columns(4)
 
-        with col1:
+        with col11:
             st.metric(
                 "Documents Uploaded",
                 st.session_state.num_documents
             )
 
-        with col2:
+        with col12:
             st.metric(
                 "Pages Indexed",
                 st.session_state.num_pages
             )
+        
+        with col13:
+            st.metric(
+                "Chunks",
+                st.session_state.num_chunks
+            )
+        
+        with col14:
+            chunks_per_page = round(
+                st.session_state.num_chunks / st.session_state.num_pages,
+                2
+            )
+            st.metric(
+                "Chunks/Page",
+                chunks_per_page
+            )
+        
+        with st.expander("⚙️ System Information"):
+            
+            col21, col22 = st.columns(2)
+            
+            with col21:
+                st.metric(
+                    "Embedding",
+                    "MiniLM-L6-v2"
+                )
+            
+            with col22:
+                st.metric(
+                    "LLM",
+                    "Llama 3.1 8B"
+                )
+            # st.write("Embedding: MiniLM-L6-v2")
+            # st.write("LLM: Llama 3.1 8B")
+
+        # Showing uploaded documents names in much better readable format
         
         st.markdown("### 📂 Uploaded Documents")
 
         for doc in st.session_state.uploaded_doc_names:
             clean_name = doc.replace("_", " ").replace(".pdf", "")
             st.markdown(f"📄 {clean_name}")
-
-        st.markdown(st.session_state.summary)
+        
+        # Executive summary
+        with st.expander(
+            "📄 Executive Summary",
+        ):
+            # Summary of the extracted chunks
+            st.markdown(st.session_state.summary)
 
         if st.session_state.suggested_questions:
 
