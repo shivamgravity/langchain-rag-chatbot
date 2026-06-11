@@ -181,8 +181,6 @@ if uploaded_files:
                     "LLM",
                     "Llama 3.1 8B"
                 )
-            # st.write("Embedding: MiniLM-L6-v2")
-            # st.write("LLM: Llama 3.1 8B")
 
         # Showing uploaded documents names in much better readable format
         
