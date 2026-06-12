@@ -4,3 +4,4 @@ __pycache__/
 *.pdf
 temp_docs/
 chroma_db/
+metadata.json

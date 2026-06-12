@@ -1,13 +1,15 @@
 import streamlit as st
 import os
 from src.rag_pipeline import create_rag_chain
-
-import warnings
-
-warnings.filterwarnings("ignore")
+from src.document_manager import add_document
 
 from datetime import datetime
+import warnings
 
+# Do not show the warnings in console output
+warnings.filterwarnings("ignore")
+
+# Chat export initialization
 chat_export = f"""
 # AI Knowledge Assistant Conversation
 
@@ -96,15 +98,19 @@ if "llm_model" not in st.session_state:
 
 # Process uploaded PDFs
 if uploaded_files:
-    if not os.path.exists("temp_docs"):
-        os.makedirs("temp_docs")
+    os.makedirs(
+        "data/documents",
+        exist_ok=True
+    )
 
     file_paths = []
     uploaded_doc_names = []
 
     for file in uploaded_files:
-        path = os.path.join("temp_docs", file.name)
-
+        path = os.path.join(
+            "data/documents",
+            file.name
+        )
         with open(path, "wb") as f:
             f.write(file.read())
 
@@ -118,7 +124,22 @@ if uploaded_files:
         set(st.session_state.uploaded_doc_names) != set(uploaded_doc_names)
     ):
         with st.spinner("🔄 Processing documents..."):
+
+            # Generating vector space embeddings to understand the document
             rag_system = create_rag_chain(file_paths)
+
+            # Adding the document to the persist directory
+            # Currently, adding only the first file if mutiple are uploaded - for testing purpose.
+            
+            if len(uploaded_files) == 1:
+
+                add_document(
+                    filename=uploaded_files[0].name,
+                    pages=rag_system["num_pages"],
+                    chunks=rag_system["num_chunks"]
+                )
+
+            # Updating the session states with fresh values
 
             st.session_state.rag = rag_system["query_fn"]
             st.session_state.summary = rag_system["summary"]
@@ -168,7 +189,7 @@ if uploaded_files:
         
         with st.expander("⚙️ System Information"):
             
-            col21, col22 = st.columns(2)
+            col21, col22, col23 = st.columns(3)
             
             with col21:
                 st.metric(
@@ -180,6 +201,12 @@ if uploaded_files:
                 st.metric(
                     "LLM",
                     "Llama 3.1 8B"
+                )
+            
+            with col23:
+                st.metric(
+                    "Retriever",
+                    "ChromaDB"
                 )
 
         # Showing uploaded documents names in much better readable format
