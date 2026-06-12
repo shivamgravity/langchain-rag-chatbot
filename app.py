@@ -163,10 +163,38 @@ with st.sidebar:
             "No saved documents yet."
         )
     
-    # Show the number of documents selected
-    st.caption(
-        f"Selected Documents: {len(st.session_state.selected_documents)}"
-    )
+    # Show current selected documents
+
+    if st.session_state.selected_documents:
+
+        st.markdown("### ✅ Selected Documents")
+
+        documents = get_documents()
+
+        for document_id in (
+            st.session_state.selected_documents
+        ):
+
+            st.write(
+                f"📄 "
+                f"{documents[document_id]['display_name']}"
+            )
+    
+    # Clear all the selected documents from session state
+    
+    if st.button(
+        "❌ Clear Selection",
+        use_container_width=True
+    ):
+
+        st.session_state.selected_documents.clear()
+
+        st.rerun()
+    
+    # # Show the number of documents selected
+    # st.caption(
+    #     f"Selected Documents: {len(st.session_state.selected_documents)}"
+    # )
 
     # Button to clear the chat
     if st.button("🧹 Clear Chat"):
@@ -211,17 +239,6 @@ if uploaded_files:
             # Generating vector space embeddings to understand the document
             rag_system = create_rag_chain(file_paths)
 
-            # Adding the document to the persist directory
-            # Currently, adding only the first file if mutiple are uploaded - for testing purpose.
-            
-            if len(uploaded_files) == 1:
-
-                add_document(
-                    filename=uploaded_files[0].name,
-                    pages=rag_system["num_pages"],
-                    chunks=rag_system["num_chunks"]
-                )
-
             # Updating the session states with fresh values
 
             st.session_state.rag = rag_system["query_fn"]
@@ -233,6 +250,17 @@ if uploaded_files:
             st.session_state.embedding_model = rag_system["embedding_model"]
             st.session_state.llm_model = rag_system["llm_model"]
             st.session_state.uploaded_doc_names = uploaded_doc_names # Update session state with new doc names
+
+            # Adding the document to the persist directory
+            # Currently, adding only the first file if mutiple are uploaded - for testing purpose.
+            
+            if len(uploaded_files) == 1:
+
+                document_id, pdf_path = add_document(
+                    filename=uploaded_files[0].name,
+                    pages=rag_system["num_pages"],
+                    chunks=rag_system["num_chunks"]
+                )
 
     # Displaying the summary of uploaded documents
 

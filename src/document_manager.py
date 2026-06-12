@@ -52,6 +52,10 @@ def add_document(
 
     document_id = generate_document_id()
 
+    pdf_path = (
+        f"data/documents/{document_id}.pdf"
+    )
+
     metadata[document_id] = {
         "display_name": filename,
         "pages": pages,
@@ -59,12 +63,13 @@ def add_document(
         "uploaded_at": (
             datetime.now()
             .strftime("%Y-%m-%d %H:%M")
-        )
+        ),
+        "pdf_path": f"data/documents/{document_id}.pdf"
     }
 
     save_metadata(metadata)
 
-    return document_id
+    return document_id, pdf_path
 
 # Fetch existing documents
 def get_documents():
