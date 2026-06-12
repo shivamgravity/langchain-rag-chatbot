@@ -1,10 +1,16 @@
 import json
 import os
+import uuid
 import shutil
 from datetime import datetime
 
 # Metadata file path
 METADATA_FILE = "data/metadata.json"
+
+# Generate unique document ids for every uploaded document
+def generate_document_id():
+
+    return uuid.uuid4().hex[:8]
 
 # Function to load document configs and details
 def load_metadata():
@@ -44,7 +50,10 @@ def add_document(
 
     metadata = load_metadata()
 
-    metadata[filename] = {
+    document_id = generate_document_id()
+
+    metadata[document_id] = {
+        "display_name": filename,
         "pages": pages,
         "chunks": chunks,
         "uploaded_at": (
@@ -54,6 +63,8 @@ def add_document(
     }
 
     save_metadata(metadata)
+
+    return document_id
 
 # Fetch existing documents
 def get_documents():
@@ -91,13 +102,3 @@ def delete_document(filename):
 if __name__ == "__main__":
 
     pass
-
-    # add_document(
-    #     "test.pdf",
-    #     10,
-    #     25
-    # )
-
-    # print(get_documents())
-
-    # delete_document("test.pdf")

@@ -1,7 +1,10 @@
 import streamlit as st
 import os
 from src.rag_pipeline import create_rag_chain
-from src.document_manager import add_document
+from src.document_manager import (
+    add_document,
+    get_documents
+)
 
 from datetime import datetime
 import warnings
@@ -42,26 +45,6 @@ st.caption(
     "Upload documents, generate insights, and ask questions."
 )
 
-# Sidebar
-with st.sidebar:
-    st.header("📂 Upload Documents")
-
-    uploaded_files = st.file_uploader(
-        "Upload PDFs",
-        type="pdf",
-        accept_multiple_files=True
-    )
-
-    if st.button("🧹 Clear Chat"):
-        st.session_state.chat_history = []
-
-        st.session_state.rag = None
-        st.session_state.summary = None
-        st.session_state.num_documents = 0
-        st.session_state.num_pages = 0
-        st.session_state.suggested_questions = None
-        st.session_state.uploaded_doc_names = []
-
 # Initialize session state
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -95,6 +78,106 @@ if "embedding_model" not in st.session_state:
 
 if "llm_model" not in st.session_state:
     st.session_state.llm_model = None
+
+if "selected_documents" not in st.session_state:
+    st.session_state.selected_documents = set()
+
+# Sidebar
+with st.sidebar:
+    
+    # Document upload section
+    st.header("📂 Upload Documents")
+
+    # Document file uploader button
+    uploaded_files = st.file_uploader(
+        "Upload PDFs",
+        type="pdf",
+        accept_multiple_files=True
+    )
+
+    # # Selected Documents
+
+    # st.subheader("\U0001F516 Selected Documents")
+
+    # if st.session_state.selected_documents:
+    #     selected_docs = ""
+    #     line = 1
+    #     for selected_doc in st.session_state.selected_documents:
+    #         # Cleaning the name
+    #         cleaned_name = (
+    #             selected_doc
+    #             .replace(".pdf", "")
+    #             .replace("-", " ")
+    #             .replace("_", " ")
+    #         )
+    #         last_char = "\n" if line < len(st.session_state.selected_documents) else ""
+    #         selected_docs += str(line) + ". " + cleaned_name + last_char
+    #         line += 1
+    #     st.info(
+    #         f"{selected_docs}"
+    #     )
+
+    # Document Library - documents that are already uploaded
+
+    documents = get_documents()
+
+    st.subheader(f"📚 Document Library \u2022 {len(documents)}")
+
+    if documents:
+        for document_id, info in documents.items():
+
+            # Cleaning the display name of the file
+            clean_name = (
+                info["display_name"]
+                .replace(".pdf", "")
+                .replace("-", " ")
+                .replace("_", " ")
+            )
+            display_metric = f"\n\
+                ({info["pages"]} pages \
+                \u2022 \
+                {info["chunks"]} chunks)"
+
+            display_name = clean_name + display_metric
+
+            if st.checkbox(
+                f"{display_name}",
+                value = True,
+                key = f"{document_id}",
+            ):
+                # Adding selected document to selected_documents active state using document id
+                st.session_state.selected_documents.add(document_id)
+                
+                # debugging
+                print(st.session_state.selected_documents)
+
+            else:
+                # Removing the document id from the selected_documents session state
+                st.session_state.selected_documents.discard(document_id)
+
+                # debugging
+                print(st.session_state.selected_documents)
+
+    else:
+        st.caption(
+            "No saved documents yet."
+        )
+    
+    # Show the number of documents selected
+    st.caption(
+        f"Selected Documents: {len(st.session_state.selected_documents)}"
+    )
+
+    # Button to clear the chat
+    if st.button("🧹 Clear Chat"):
+        st.session_state.chat_history = []
+
+        st.session_state.rag = None
+        st.session_state.summary = None
+        st.session_state.num_documents = 0
+        st.session_state.num_pages = 0
+        st.session_state.suggested_questions = None
+        st.session_state.uploaded_doc_names = []
 
 # Process uploaded PDFs
 if uploaded_files:
