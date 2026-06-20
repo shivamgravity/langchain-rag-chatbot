@@ -58,191 +58,95 @@ def build_chat_export():
     return chat_export
 
 
-def render_chat():
-    """
-    Handles the chat input, runs the RAG query, appends to history,
-    renders the full conversation with sources, and shows the download button.
-    Mirrors the original chat block exactly.
+def _render_sources(chat):
+    number_of_sources = chat.get("retrieved_chunks")
+    confidence_symbol = None
+    if chat.get("confidence"):
+        confidence = chat["confidence"]
+        if confidence == "Low":
+            confidence_symbol = "🔴"
+        elif confidence == "Medium":
+            confidence_symbol = "🟡"
+        else:
+            confidence_symbol = "🟢"
 
-    Returns
-    -------
-    str
-        The exportable Markdown string of the current conversation,
-        used by the download button.
-    """
-    # Prompting the user to ask questions after summary generation
+    if number_of_sources and confidence_symbol:
+        st.caption(f"📚 {number_of_sources} sources used  \t  {confidence_symbol} Confidence: {confidence}")
+    elif number_of_sources:
+        st.caption(f"📚 {number_of_sources} sources used")
+    elif confidence_symbol:
+        st.caption(f"{confidence_symbol} Confidence: {confidence}")
+
+    if chat.get("sources"):
+        # We need a unique key for the button, we can use the hash of the message content or just an index
+        # Since we don't pass an index right now, we can use a hash of the first source content as a pseudo-unique key
+        unique_key = f"src_btn_{hash(chat['message'][:50])}"
+        if st.button("📄 View Sources", key=unique_key):
+            st.session_state.active_sources = chat["sources"]
+
+def render_chat_history():
     if st.session_state.rag:
-
         st.divider()
+        st.subheader("\u2753 Ask Questions")
+        st.caption("Answers are generated from the uploaded documents.")
 
-        st.subheader(
-            "\u2753 Ask Questions"
+    for chat in st.session_state.chat_history:
+        if chat["role"] == "user":
+            with st.chat_message("user"):
+                st.markdown(chat["message"])
+        else:
+            with st.chat_message("assistant"):
+                st.markdown(chat["message"])
+                _render_sources(chat)
+
+    chat_export = build_chat_export()
+
+    if st.session_state.chat_history:
+        st.download_button(
+            label="📥 Download Conversation",
+            data=chat_export,
+            file_name=f"chat_{datetime.now():%Y%m%d_%H%M%S}.md",
+            mime="text/markdown"
         )
 
-        st.caption(
-            "Answers are generated from the uploaded documents."
-        )
 
-    # Chat input
-    query = st.chat_input("Ask a question...")
+def handle_chat_input(chat_container):
+    query = st.chat_input("Ask a question...", disabled=not bool(st.session_state.rag))
 
-    # If user clicks on a suggested question, use that as the query
-    if (
-        query is None
-        and st.session_state.selected_question
-    ):
+    if query is None and st.session_state.selected_question:
         query = st.session_state.selected_question
         st.session_state.selected_question = None
 
     if query and st.session_state.rag:
-        with st.spinner("🤖 Thinking..."):
-            result = st.session_state.rag(query)
-
-        answer = result["answer"]
-        sources = result["sources"]
-        retrieved_chunks = result["retrieved_chunks"]
-        confidence = result["confidence"]
-
-        # Save chat
-        st.session_state.chat_history.append(
-            {
-                "role": "user",
-                "message": query
-            }
-        )
-
-        st.session_state.chat_history.append(
-            {
-                "role": "assistant",
-                "message": answer,
-                "sources": sources,
-                "retrieved_chunks": retrieved_chunks,
-                "confidence": confidence
-            }
-        )
-        # No explicit rerun needed; Streamlit will render the updated chat history in this run
-
-    # Build exportable chat content
-    chat_export = build_chat_export()
-
-    # Chat rendering with sources and retrieved chunk count
-    # Display Chat
-    for chat in st.session_state.chat_history:
-
-        if chat["role"] == "user":
-
-            # Display user message
+        with chat_container:
             with st.chat_message("user"):
-                st.markdown(chat["message"])
-
-        else:
-
-            # Display assistant message
+                st.markdown(query)
+                
             with st.chat_message("assistant"):
+                with st.spinner("🤖 Thinking..."):
+                    result = st.session_state.rag(query, st.session_state.chat_history)
+                
+                def stream_response():
+                    for chunk in result["answer_stream"]:
+                        if hasattr(chunk, 'content'):
+                            yield chunk.content
+                        else:
+                            yield str(chunk)
 
-                st.markdown(chat["message"])
-
-                # Show number of sources used
-                number_of_sources = None
-                if chat.get("retrieved_chunks"):
-                    number_of_sources = chat["retrieved_chunks"]
-
-                # Show confidence in result
-                confidence_symbol = None
-                if chat.get("confidence"):
-                    confidence = chat["confidence"]
-                    if confidence == "Low":
-                        confidence_symbol = "\U0001F534"
-                    elif confidence == "Medium":
-                        confidence_symbol = "\U0001F7E1"
-                    else:
-                        confidence_symbol = "\U0001F7E2"
-
-                if number_of_sources and confidence_symbol:
-                    st.caption(
-                        f"📚 {chat['retrieved_chunks']} sources used  \t  {confidence_symbol} Confidence: {confidence}"
-                    )
-                elif number_of_sources:
-                    st.caption(
-                        f"📚 {chat['retrieved_chunks']} sources used"
-                    )
-                else:
-                    st.caption(
-                        f"{confidence_symbol} Confidence: {confidence}"
-                    )
-
-                if chat.get("sources"):
-
-                    with st.expander("📄 View Sources"):
-
-                        col1, col2 = st.columns(2)
-
-                        seen = set()
-
-                        button_idx = 0
-
-                        for src in chat["sources"]:
-
-                            # Avoid showing duplicate sources if multiple chunks come from the same page
-                            key = (
-                                src["file"],
-                                src["page"]
-                            )
-
-                            if key in seen:
-                                continue
-
-                            seen.add(key)
-
-                            # Create a citation string like "Document (Page 3)"
-                            citation = (
-                                f"{src['file']} "
-                                f"(Page {src['page']})"
-                            )
-
-                            # Create a snippet for each source
-                            content = src["content"].strip().replace("\n", " ")
-                            first_period = content.find(".")
-
-                            if first_period != -1:
-                                snippet = content[first_period + 1:].strip()
-                            else:
-                                snippet = content
-
-                            snippet = snippet[:150]
-
-                            if len(snippet) < 100:
-                                snippet = content[:150]
-
-                            if len(src["content"]) > 100:
-                                snippet += "..."
-
-                            # Combine citation and snippet for button content
-                            button_content = f"**📄 {citation}**\n\n{snippet}"
-
-                            if button_idx % 2 == 0:
-                                target_col = col1
-                            else:
-                                target_col = col2
-
-                            with target_col:
-
-                                with st.container(border=True):
-
-                                    st.markdown(citation)
-                                    st.caption(snippet)
-
-                            button_idx += 1
-
-    # Download conversation as markdown file
-    if st.session_state.chat_history:
-
-        st.download_button(
-            label="📥 Download Conversation",
-            data=chat_export,
-            file_name=(
-                f"chat_"
-                f"{datetime.now():%Y%m%d_%H%M%S}.md"
-            ),
-            mime="text/markdown"
-        )
+                answer = st.write_stream(stream_response)
+                
+                assistant_msg = {
+                    "role": "assistant",
+                    "message": answer,
+                    "sources": result["sources"],
+                    "retrieved_chunks": result["retrieved_chunks"],
+                    "confidence": result["confidence"]
+                }
+                
+                _render_sources(assistant_msg)
+                
+                st.session_state.chat_history.append({"role": "user", "message": query})
+                st.session_state.chat_history.append(assistant_msg)
+                
+                st.session_state.active_sources = result["sources"]
+                st.rerun()

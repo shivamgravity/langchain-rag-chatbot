@@ -45,12 +45,16 @@ def save_metadata(metadata):
 def add_document(
     filename,
     pages,
-    chunks
+    chunks,
+    summary="",
+    questions=None,
+    document_id=None
 ):
 
     metadata = load_metadata()
 
-    document_id = generate_document_id()
+    if document_id is None:
+        document_id = generate_document_id()
 
     pdf_path = (
         f"data/documents/{document_id}.pdf"
@@ -60,6 +64,8 @@ def add_document(
         "display_name": filename,
         "pages": pages,
         "chunks": chunks,
+        "summary": summary,
+        "questions": questions or [],
         "uploaded_at": (
             datetime.now()
             .strftime("%Y-%m-%d %H:%M")
