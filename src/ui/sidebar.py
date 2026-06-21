@@ -22,7 +22,7 @@ def render_sidebar():
         )
 
         # Document Library
-        documents = get_documents()
+        documents = get_documents(st.session_state.user_id)
         st.subheader(f"📚 Document Library \u2022 {len(documents)}")
 
         if documents:
@@ -46,7 +46,7 @@ def render_sidebar():
 
         def clear_selection():
             st.session_state.selected_documents.clear()
-            for doc_id in get_documents():
+            for doc_id in get_documents(st.session_state.user_id):
                 if doc_id in st.session_state:
                     st.session_state[doc_id] = False
 
@@ -54,6 +54,13 @@ def render_sidebar():
 
         if st.button("🧹 Clear Chat"):
             st.session_state.chat_history = []
+            st.session_state.active_sources = None
             # We don't reset rag system here, just the chat history
+            
+        st.divider()
+        
+        if st.button("🚪 Log Out", use_container_width=True, type="primary"):
+            st.session_state.clear()
+            st.rerun()
 
     return uploaded_files

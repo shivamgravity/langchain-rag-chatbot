@@ -8,6 +8,7 @@ from src.document_manager import add_document, get_documents
 from src.ui.sidebar import render_sidebar
 from src.ui.dashboard import render_dashboard
 from src.ui.chat import render_chat_history, handle_chat_input
+from src.auth import authenticate_user, register_user, log_action
 
 warnings.filterwarnings("ignore")
 
@@ -16,17 +17,37 @@ st.set_page_config(page_title="Enterprise AI Assistant", layout="wide")
 # --- Basic Authentication ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
+    st.session_state.user_id = None
 
 if not st.session_state.logged_in:
     st.title("🔒 Enterprise Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Login"):
-        if username == "admin" and password == "admin":
-            st.session_state.logged_in = True
-            st.rerun()
-        else:
-            st.error("Invalid credentials")
+    tab1, tab2 = st.tabs(["Login", "Register"])
+    
+    with tab1:
+        with st.form("login_form"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Login")
+            if submitted:
+                user_id = authenticate_user(username, password)
+                if user_id:
+                    st.session_state.logged_in = True
+                    st.session_state.user_id = user_id
+                    log_action(user_id, "login")
+                    st.rerun()
+                else:
+                    st.error("Invalid credentials")
+                    
+    with tab2:
+        with st.form("register_form"):
+            new_username = st.text_input("New Username")
+            new_password = st.text_input("New Password", type="password")
+            reg_submitted = st.form_submit_button("Register")
+            if reg_submitted:
+                if register_user(new_username, new_password):
+                    st.success("Registration successful! Please login.")
+                else:
+                    st.error("Username already exists or error occurred.")
     st.stop()
 
 # Custom CSS
@@ -93,37 +114,45 @@ if "active_sources" not in st.session_state:
 
 uploaded_files = render_sidebar()
 
+if "processed_files" not in st.session_state:
+    st.session_state.processed_files = set()
+
 # 1. Process newly uploaded PDFs
 if uploaded_files:
-    os.makedirs("data/documents", exist_ok=True)
+    new_files = [f for f in uploaded_files if f.file_id not in st.session_state.processed_files]
+    if new_files:
+        os.makedirs("data/documents", exist_ok=True)
 
-    for file in uploaded_files:
-        document_id = uuid.uuid4().hex[:8]
-        path = os.path.join("data/documents", f"{document_id}.pdf")
-        with open(path, "wb") as f:
-            f.write(file.read())
+        for file in new_files:
+            document_id = uuid.uuid4().hex[:8]
+            path = os.path.join("data/documents", f"{document_id}.pdf")
+            with open(path, "wb") as f:
+                f.write(file.read())
 
-        with st.spinner(f"🔄 Processing and embedding {file.name}..."):
-            try:
-                doc_metadata = process_and_add_document(path, document_id)
-                
-                add_document(
-                    filename=file.name,
-                    pages=doc_metadata["num_pages"],
-                    chunks=doc_metadata["num_chunks"],
-                    summary=doc_metadata["summary"],
-                    questions=doc_metadata["suggested_questions"],
-                    document_id=document_id
-                )
-                st.session_state.selected_documents.add(document_id)
-            except Exception as e:
-                st.error(f"Failed to process {file.name}: {str(e)}")
+            with st.spinner(f"🔄 Processing and embedding {file.name}..."):
+                try:
+                    doc_metadata = process_and_add_document(path, document_id)
+                    
+                    add_document(
+                        filename=file.name,
+                        pages=doc_metadata["num_pages"],
+                        chunks=doc_metadata["num_chunks"],
+                        user_id=st.session_state.user_id,
+                        summary=doc_metadata["summary"],
+                        questions=doc_metadata["suggested_questions"],
+                        document_id=document_id
+                    )
+                    log_action(st.session_state.user_id, "upload_doc", file.name)
+                    st.session_state.selected_documents.add(document_id)
+                    st.session_state.processed_files.add(file.file_id)
+                except Exception as e:
+                    st.error(f"Failed to process {file.name}: {str(e)}")
 
-    st.success(f"{len(uploaded_files)} PDFs uploaded and processed!")
-    st.rerun() # Refresh to update sidebar
+        st.success(f"{len(new_files)} PDFs uploaded and processed!")
+        st.rerun() # Refresh to update sidebar
 
 # 2. Add selected documents from the library
-documents_metadata = get_documents()
+documents_metadata = get_documents(st.session_state.user_id)
 
 selected_ids = list(st.session_state.selected_documents)
 selected_ids = [did for did in selected_ids if did in documents_metadata]
@@ -135,7 +164,7 @@ use_local_llm = st.session_state.get("use_local_llm", False)
 if (st.session_state.last_selection_set != current_selection_set) or (st.session_state.get("last_llm_state") != use_local_llm):
     if current_selection_set:
         with st.spinner("🔄 Initializing RAG pipeline..."):
-            rag_system = init_rag_system(list(current_selection_set), use_local_llm)
+            rag_system = init_rag_system(list(current_selection_set), documents_metadata, use_local_llm)
 
             st.session_state.rag = rag_system["query_fn"]
             

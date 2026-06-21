@@ -60,7 +60,7 @@ def process_and_add_document(pdf_path, document_id):
     }
 
 
-def init_rag_system(selected_document_ids, use_local_llm=False):
+def init_rag_system(selected_document_ids, document_metadata_map, use_local_llm=False):
     db = Chroma(
         persist_directory="./chroma_db",
         collection_name="enterprise_docs",
@@ -137,8 +137,10 @@ def init_rag_system(selected_document_ids, use_local_llm=False):
         
         sources = []
         for doc in docs:
+            doc_id = doc.metadata.get("document_id")
+            display_name = document_metadata_map.get(doc_id, {}).get("display_name", os.path.basename(doc.metadata.get("source", "Unknown")))
             sources.append({
-                "file": os.path.basename(doc.metadata.get("source", "Unknown")),
+                "file": display_name,
                 "page": doc.metadata.get("page", 0) + 1,
                 "content": doc.page_content
             })

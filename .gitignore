@@ -5,3 +5,4 @@ __pycache__/
 temp_docs/
 chroma_db/
 metadata.json
+*.db

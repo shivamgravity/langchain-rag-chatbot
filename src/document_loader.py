@@ -2,10 +2,11 @@ from src.document_manager import get_documents
 
 
 def get_selected_pdf_paths(
-    selected_document_ids
+    selected_document_ids,
+    user_id
 ):
 
-    documents = get_documents()
+    documents = get_documents(user_id)
 
     pdf_paths = []
 
